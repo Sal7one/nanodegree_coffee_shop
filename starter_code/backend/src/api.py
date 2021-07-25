@@ -1,4 +1,4 @@
-import sys
+import os
 from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
@@ -76,48 +76,4 @@ CORS(app)
 '''
 
 
-# Error Handling
-@app.errorhandler(400)
-def bad_request(error):
-    print(sys.exc_info())
-    return jsonify({
-        "success": False,
-        "error": 400,
-        "message": "Bad Request"
-    }), 400
 
-@app.errorhandler(404)
-def not_found(error):
-    print(sys.exc_info())
-    return jsonify({
-        "success": False,
-        "error": 404,
-        "message": "Resource Not Found"
-    }), 404
-
-@app.errorhandler(405)
-def method_not_allowed(error):
-    print(sys.exc_info())
-    return jsonify({
-        "success": False,
-        "error": 405,
-        "message": "Method Not Allowed"
-    }), 405
-
-@app.errorhandler(422)
-def unprocessable_entity(error):
-    print(sys.exc_info())
-    return jsonify({
-        "success": False,
-        "error": 422,
-        "message": "Unprocessable entity"
-    }), 422
-
-@app.errorhandler(500)
-def internal_server_error(error):
-    print(sys.exc_info())
-    return jsonify({
-        'success': False,
-        'error': 500,
-        'message': 'Internal server error'
-    }), 500
