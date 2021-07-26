@@ -1,8 +1,9 @@
 import json
-from flask import request, _request_ctx_stack, abort
+from flask import request, abort,  _request_ctx_stack
 from functools import wraps
 from jose import jwt
 from urllib.request import urlopen
+from werkzeug.exceptions import PreconditionFailed
 
 
 AUTH0_DOMAIN = 'dev-9g0lv-98.us.auth0.com'
@@ -21,9 +22,9 @@ class AuthError(Exception):
 # Auth Header
 
 def get_token_auth_header():
-    """Obtains the Access Token from the Authorization Header
-    """
+
     auth = request.headers.get('Authorization', None)
+
     if not auth:
         raise AuthError({
             'code': 'authorization_header_missing',
@@ -50,16 +51,19 @@ def get_token_auth_header():
         }, 401)
 
     token = parts[1]
+
     return token
 
 
 def check_permissions(permission, payload):
+    # Check if permisions are present
     if 'permissions' not in payload:
         raise AuthError({
             'code': 'invalid_claims',
             'description': 'Permissions not included in JWT.'
         }, 400)
 
+    # Check if the required permission exisits
     if permission not in payload['permissions']:
         raise AuthError({
             'code': 'unauthorized',
@@ -72,6 +76,7 @@ def check_permissions(permission, payload):
 def verify_decode_jwt(token):
     jsonurl = urlopen(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
     jwks = json.loads(jsonurl.read())
+
     unverified_header = jwt.get_unverified_header(token)
     rsa_key = {}
     if 'kid' not in unverified_header:
@@ -98,7 +103,6 @@ def verify_decode_jwt(token):
                 audience=API_AUDIENCE,
                 issuer='https://' + AUTH0_DOMAIN + '/'
             )
-
             return payload
 
         except jwt.ExpiredSignatureError:
