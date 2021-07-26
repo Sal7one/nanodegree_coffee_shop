@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify, abort
 from sqlalchemy import exc
 import json
 from flask_cors import CORS
+from sqlalchemy.sql.functions import user
 from .database.models import db_drop_and_create_all, setup_db, Drink
 from .auth.auth import AuthError, requires_auth
 import sys
@@ -42,11 +43,10 @@ def create_app(test_config=None):
     @requires_auth("get:drinks-detail")
     def retrieve_drinks_detail(self):
         # Getting user data
-       # print("You're authoed ")
-      #  drinks = drink_getter(public=False)
+        drinks = drink_getter(public=False)
 
         # Get Questions with helper function
-        return jsonify({"success": True, "drinks": "drinks"})
+        return jsonify({"success": True, "drinks": drinks})
 
     @app.route('/drinks', methods=["POST"])
     @requires_auth("post:drinks")
@@ -54,6 +54,7 @@ def create_app(test_config=None):
         # Getting user data and making sure it's the same data-type as DB MODEL
 
         drink_data = request.json
+
         if drink_data is None:
             abort(422)
 
@@ -76,8 +77,9 @@ def create_app(test_config=None):
             # Try inserting into DB
             try:
                 the_Drink.insert()
+                the_drink = [the_Drink.title, the_Drink.recipe]
                 return jsonify(
-                    {"success": True, "drinks": [the_Drink]}
+                    {"success": True, "drinks":  the_drink}
                 )
             # Server error from SQL Alchemy
             except:
@@ -90,30 +92,31 @@ def create_app(test_config=None):
 
     @app.route('/drinks/<drink_id>', methods=["PATCH"])
     @requires_auth("patch:drinks")
-    def modify_drinks(self,drink_id):
+    def modify_drinks(self, drink_id):
         # Getting user data
         drink_data = request.json
         if drink_data is None:
             abort(422)
-        drink_title = str(drink_data['title'])
+
+        user_title = str(drink_data['title'])
 
         # Data not correct, UNPROCESSABLE
-        if(drink_title is None or drink_title == ""):
+        if(user_title is None or user_title == ""):
             abort(422)
 
         drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
 
         if drink is not None:
-            drink.title = drink_title
+            drink.title = user_title
             drink.update()
         else:
             abort(404)
 
-        return jsonify({"success": True, "drinks": [drink]})
+        return jsonify({"success": True, "drinks": [drink.title]})
 
     @app.route('/drinks/<drink_id>', methods=["DELETE"])
     @requires_auth("delete:drinks")
-    def delete_drinks(self,drink_id):
+    def delete_drinks(self, drink_id):
 
         the_drink = Drink.query.filter(
             Drink.id == drink_id).one_or_none()
@@ -203,5 +206,5 @@ def create_app(test_config=None):
         response = jsonify(ex.error)
         response.status_code = ex.status_code
         return response
-        
+
     return app
