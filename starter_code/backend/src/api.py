@@ -4,6 +4,7 @@ from sqlalchemy import exc
 import json
 from flask_cors import CORS
 from sqlalchemy.sql.functions import user
+from werkzeug.exceptions import Aborter
 from .database.models import db_drop_and_create_all, setup_db, Drink
 from .auth.auth import AuthError, requires_auth
 import sys
@@ -22,14 +23,18 @@ def create_app(test_config=None):
         # Allow only used methods
         response.headers.add('Access-Control-Allow-Headers',
                              'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Origin',
+                             '*')
 
         response.headers.add('Access-Control-Allow-Methods',
-                             'GET,POST,DELETE,PATCH')
+                             'GET,POST,DELETE,PATCH,OPTIONS')
         return response
 
     db_drop_and_create_all()
 
     # ROUTES
+
+# -------------  Public --------- Getting drinks ---------------------------
     @app.route('/drinks', methods=["GET"])
     def retrieve_drinks():
         # Getting user data
@@ -39,6 +44,7 @@ def create_app(test_config=None):
         # Get Questions with helper function
         return jsonify({"success": True, "drinks": drinks})
 
+# -------------------- Private -------------------------------------
     @app.route('/drinks-detail', methods=["GET"])
     @requires_auth("get:drinks-detail")
     def retrieve_drinks_detail(self):
@@ -48,57 +54,52 @@ def create_app(test_config=None):
         # Get Questions with helper function
         return jsonify({"success": True, "drinks": drinks})
 
+# ---------------------- Drink oprations --------------------------------
     @app.route('/drinks', methods=["POST"])
     @requires_auth("post:drinks")
     def post_drinks(self):
         # Getting user data and making sure it's the same data-type as DB MODEL
+        try:
+            json_data = dict(request.json)
 
-        drink_data = request.json
+            user_title = json_data['title']
+            user_recipe = ""
+            if type(json_data['recipe']) == str:
+                user_recipe = json_data['recipe']
+            else:
+                user_recipe = json.dumps(json_data['recipe'])
 
-        if drink_data is None:
+
+            the_drink = Drink(
+                title=user_title,
+                recipe=user_recipe
+            )
+        except:
             abort(422)
 
         try:
-            user_title = str(drink_data['title'])
-            user_recipe = str(drink_data['recipe'])
+            the_drink.insert()
+
+            return jsonify({'success': True, 'drink': the_drink.long()})
         except:
-            abort(422)
-        # Checking if there's an input error and handling it as entry error   # Data not correct, UNPROCESSABLE
-
-        if(user_title is not None and
-           user_recipe is not None
-           ):
-
-            # Instace of DB object with our Data
-            the_Drink = Drink(
-                title=user_title,
-                recipe=user_recipe)
-
-            # Try inserting into DB
-            try:
-                the_Drink.insert()
-                the_drink = [the_Drink.title, the_Drink.recipe]
-                return jsonify(
-                    {"success": True, "drinks":  the_drink}
-                )
-            # Server error from SQL Alchemy
-            except:
-                print(sys.exc_info())
-                abort(500)
-        else:
-            abort(422)
-
+            abort(500)
         # Get Questions with helper function
 
     @app.route('/drinks/<drink_id>', methods=["PATCH"])
     @requires_auth("patch:drinks")
     def modify_drinks(self, drink_id):
         # Getting user data
-        drink_data = request.json
+        drink_data = dict(request.json)
+
         if drink_data is None:
             abort(422)
 
-        user_title = str(drink_data['title'])
+        user_title = drink_data.get('title'),
+        user_title = ''.join(user_title)
+
+        user_recipe = (drink_data.get('recipe')
+                       if type(drink_data.get('recipe')) == str
+                       else json.dumps(drink_data.get('recipe')))
 
         # Data not correct, UNPROCESSABLE
         if(user_title is None or user_title == ""):
@@ -108,6 +109,10 @@ def create_app(test_config=None):
 
         if drink is not None:
             drink.title = user_title
+
+            if user_recipe is not None:
+                drink.recipe = user_recipe
+
             drink.update()
         else:
             abort(404)
@@ -132,27 +137,21 @@ def create_app(test_config=None):
     def drink_getter(public):
         # on the parameters  from the calling function
         try:
-
             if(public):
                 drinks = Drink.query.all()
-                drinks = [drink.short() for drink in drinks]
 
-                if(drinks is not None or drinks is not None):
-                    return drinks
-                else:
-                    abort(500)
+                drinks = [drink.short() for drink in drinks]
+                return drinks
+
             else:
                 drinks = Drink.query.all()
                 drinks = [drink.long() for drink in drinks]
 
-                if(drinks is not None or drinks is not None):
-                    return drinks
-                else:
-                    abort(500)
+                return drinks
 
-        except:
-            print(sys.exc_info())
-            abort(500)
+        except os.error as eeee:
+            print("E")
+            print(eeee)
 
     # Error Handling
 
