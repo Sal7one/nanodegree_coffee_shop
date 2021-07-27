@@ -69,7 +69,6 @@ def create_app(test_config=None):
             else:
                 user_recipe = json.dumps(json_data['recipe'])
 
-
             the_drink = Drink(
                 title=user_title,
                 recipe=user_recipe
@@ -149,10 +148,8 @@ def create_app(test_config=None):
 
                 return drinks
 
-        except os.error as eeee:
-            print("E")
-            print(eeee)
-
+        except:
+            abort(500)
     # Error Handling
 
     @app.errorhandler(400)
